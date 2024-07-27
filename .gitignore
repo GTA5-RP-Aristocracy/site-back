@@ -1,0 +1,13 @@
+.vscode
+.DS_Store
+.idea
+
+profile.out
+coverage.txt
+
+*.log*
+
+debug
+vendor
+
+.history/
