@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/GTA5-RP-Aristocracy/site-back/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog/v2"
 	"github.com/rs/zerolog"
 )
 
@@ -36,17 +38,32 @@ func main() {
 	// Create a new user http handler.
 	userHandler := user.NewHandler(userService)
 
+	loggerRouter := httplog.NewLogger("gta-site-api", httplog.Options{
+		JSON:     true,
+		LogLevel: slog.LevelDebug,
+		Concise:  true,
+		// RequestHeaders:   true,
+		MessageFieldName: "message",
+		// TimeFieldFormat: time.RFC850,
+		Tags: map[string]string{
+			"version": "v0.0.1",
+			"env":     "dev",
+		},
+		QuietDownRoutes: []string{
+			"/",
+		},
+		QuietDownPeriod: 10 * time.Second,
+		// SourceFieldName: "source",
+	})
+
 	// Start the web server.
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(httplog.RequestLogger(loggerRouter))
+	r.Use(middleware.Heartbeat("/ping"))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
-
-	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("pong"))
-	})
 
 	userHandler.RegisterUserRouter(r)
 
