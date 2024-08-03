@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	FormatVersion = "2006-01-02-15:04:05"
+	FormatVersion = "2006-01-02-15-04-05"
 
 	MigrationUp   MigrationDirection = "up"
 	MigrationDown MigrationDirection = "down"
