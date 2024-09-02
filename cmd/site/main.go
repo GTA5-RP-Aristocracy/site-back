@@ -8,6 +8,7 @@ import (
 
 	"github.com/GTA5-RP-Aristocracy/site-back/db"
 	"github.com/GTA5-RP-Aristocracy/site-back/user"
+	"github.com/caarlos0/env/v11"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog/v2"
@@ -20,8 +21,15 @@ func main() {
 
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
+	// Define the configuration options.
+	dbConfig := db.Config{}
+	err := env.Parse(&dbConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to parse the database configuration")
+	}
+
 	// Connect to the database.
-	db, err := db.ConnectDB("postgres", "postgres", "localhost", "gta_site")
+	db, err := db.ConnectDB(dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Database)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to connect to the database")
 	}
