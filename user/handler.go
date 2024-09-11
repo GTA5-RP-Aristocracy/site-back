@@ -1,10 +1,14 @@
 package user
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/goccy/go-json"
+	"golang.org/x/crypto/argon2"
 )
 
 // This file contains user related http handlers.
@@ -33,6 +37,7 @@ func (h *Handler) RegisterUserRouter(externalRouter chi.Router) {
 	r.Post(pathSignup, h.Signup)
 	r.Get(pathList, h.List)
 	externalRouter.Mount(pathRoot, r)
+	
 }
 
 // Signup handles user signup request.
@@ -70,4 +75,44 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// Write stas (hashed password user)
+func (h *Handler) passHashed(password string) (string, error) {
+	passwd := make([]byte,16)
+	_, err := rand.Read(passwd)
+	if err != nil{
+		return "", fmt.Errorf("Error generating password: %w", err)
+	}
+	hash := argon2.IDKey([]byte(password), passwd,1,64*1024,4,32 )
+	passBase64 := base64.RawStdEncoding.EncodeToString(passwd)
+	hashBase64 := base64.RawStdEncoding.EncodeToString(hash)
+	return fmt.Sprintf("%s$%s",passBase64,hashBase64), nil
+	} 
+	
+	
+
+	
+
+
+// Write stas (check passw and hash sum)
+func checkPasswordHash(password, encodedHash string)(bool, error){
+	var passwdBase64, hashBase64 string
+	_, err := fmt.Sscanf(encodedHash, "%s$%s",&passwdBase64,&hashBase64)
+	if err != nil{
+		return false,err
+	}
+
+	passwd, err := base64.RawStdEncoding.DecodeString(passwdBase64)
+	if err != nil{
+		return false,err
+	}
+
+	expectedHash, err := base64.RawStdEncoding.DecodeString(hashBase64)
+	if err != nil{
+		return false, err
+	}
+	generatedHash := argon2.IDKey([]byte(password), passwd, 1, 64*1024, 4, 32)
+
+	return string(expectedHash) == string(generatedHash), nil
 }
