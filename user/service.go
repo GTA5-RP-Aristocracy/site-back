@@ -34,11 +34,17 @@ func (s *service) Signup(email, name, password string) error {
 		return fmt.Errorf("error get email:%w",err)
 	}
 
+	hash, err := s.passHashed(password)
+	if err != nil{
+		return fmt.Errorf("error get passwordHash:%w", err)
+	}
+
 	// Create a new user.
 	user := User{
+		ID: uuid.New(),
 		Email:    email,
 		Name:     name,
-		Password: password,
+		Password: hash,
 	}
 	return s.repo.Create(user)
 }
