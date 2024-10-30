@@ -5,6 +5,7 @@ package user
 import (
 	"database/sql"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
@@ -35,7 +36,7 @@ func (r *repository) FindByEmail(email string) (User, error) {
 }
 
 // FindByID returns a user by id.
-func (r *repository) FindByID(id int) (User, error) {
+func (r *repository) FindByID(id uuid.UUID) (User, error) {
 	var user User
 	err := r.db.QueryRow("SELECT id, email, name, password, created, updated FROM users WHERE id = $1", id).
 		Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Created, &user.Updated)
