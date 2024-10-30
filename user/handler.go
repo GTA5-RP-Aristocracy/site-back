@@ -75,10 +75,10 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 	}
 }
 
-// сделать с этой хней перемещение отдельно
+// TODO move to separate file
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-// попытка сервер-клиент не догнал (денчик обьясни)
+
 func (h *Handler)Signin(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
@@ -101,7 +101,7 @@ func (h *Handler)Signin(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("content-type","application/json")
 	w.WriteHeader(http.StatusOK)
-	// добавь ошибку
+	
 	jsonResponse, _ :=json.Marshal(user)
 	w.Write(jsonResponse)
 
@@ -109,11 +109,11 @@ func (h *Handler)Signin(w http.ResponseWriter, r *http.Request) {
 
 
 
-// сделать с этой хней перемещение отдельно
+// TODO move to separate file
 var ErrUserNotFound = errors.New("user not found")
 
-// попытка сервер-клиент не догнал (денчик обьясни)
-//Get
+
+
 func (h *Handler)Get(w http.ResponseWriter, r *http.Request){
 	uuidStr := r.URL.Query().Get("uuid")
 	

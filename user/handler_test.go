@@ -10,9 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// не понял 22 строчку
+
 type MockService struct{
-	//  mock.Mock
 	 funcSignup func(email,name,password string)(error)
 	 funcList func()([]User,error)
 	 funcSignin func(email,password string)(User,error)
@@ -22,26 +21,25 @@ type MockService struct{
 
 
 
-//List
+// List
 func (m *MockService) List()([]User,error){
-	// ебать хуйня ебаная
 	if m.funcList  !=nil{
 		return m.funcList()	
 	}
 	return []User{}, nil	
 }
 
-//Get
+// Get
 func(m *MockService) Get(id uuid.UUID)(User,error){
 	return m.funcGet(id)
 }
 
-//Signin
+// Signin
 func(m *MockService) Signin(email,password string)(User,error){
 	return m.funcSignin(email,password)
 }
 
-//Signup(не понял 47 строчку)
+// Signup
 func(m *MockService) Signup(email,name,password string)(error){
 	if m.funcSignup != nil{
 		return m.funcSignup(email,name,password)
@@ -52,7 +50,7 @@ func(m *MockService) Signup(email,name,password string)(error){
 
 
 
-//Signup как это нахуй работает
+// Signup 
 func TestHandlerSignup(t *testing.T){
 	cases := []struct{
 		testName string
@@ -88,15 +86,15 @@ func TestHandlerSignup(t *testing.T){
 			}
 			req.Header.Set("content-type","appication/json")
 
-			//какой то ResponseRecorder
+			
 			rr := httptest.NewRecorder()
 
-			//хз что это
+			
 			mockService := &MockService{
 				funcSignup: tc.funcSignup,
 			}
 
-			//хз что это
+			
 			handler := &Handler{service: mockService}
 
 			handler.Signup(rr,req)
@@ -111,8 +109,7 @@ func TestHandlerSignup(t *testing.T){
 }
 
 
-//List
-
+// List
 func TestList(t *testing.T){
 	cases :=[]struct{
 		testName string
@@ -122,7 +119,7 @@ func TestList(t *testing.T){
 		{
 			testName: "Succesfull list",
 			funcList: func()([]User,error){
-				      //тут подчеркивает
+				      
 				return []User{},nil
 				
 			},
@@ -132,7 +129,7 @@ func TestList(t *testing.T){
 		{
 			testName: "List error",
 			funcList: func()([]User,error){
-					   //тут подчеркивает
+					   
 				return nil,errors.New("internal error")
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -153,7 +150,7 @@ func TestList(t *testing.T){
 			mockService := MockService{
 				funcList: tc.funcList,
 			}
-											// подчеркивает
+											
 			handler := &Handler{service: &mockService}
 			handler.List(rr,req)
 
@@ -164,12 +161,10 @@ func TestList(t *testing.T){
 	}
 }
 
-//Signin
-
+// Signin
 func TestSignin(t *testing.T){
 	cases :=[]struct{
 		testName string
-		// Что это для чего пишем
 		requestBody string
 		funcSignin func(email,password string)(User,error)
 		expectedStatus int
@@ -178,7 +173,7 @@ func TestSignin(t *testing.T){
 			testName: "Successfull Signin",
 			requestBody: "email=teststas@ex.com&password=123test",
 			funcSignin: func(email,password string) (User,error){
-						//почему подчеркивает
+						
 				return User{Email: "teststas@ex.com", Name: "test"}, nil
 			},
 			expectedStatus: http.StatusOK,
@@ -187,7 +182,7 @@ func TestSignin(t *testing.T){
 			testName: "Unauthorized Signin",
 			requestBody: "email=123@email.com&password=1231231231",
 			funcSignin: func(email,password string)(User,error){
-						//подчеркивает почему
+						
 				return User{},ErrInvalidCredentials
 			},
 			expectedStatus: http.StatusUnauthorized,
@@ -217,7 +212,7 @@ func TestSignin(t *testing.T){
 			if err !=nil{
 				t.Fatal(err)
 			}
-											//нихуя себе 200 !=400
+											
 			req.Header.Set("content-type","application/x-www-form-urlencoded")
 
 			rr := httptest.NewRecorder()
@@ -240,8 +235,7 @@ func TestSignin(t *testing.T){
 	}
 }
 
-//Get
-
+// Get
 func TestGet(t *testing.T){
 	cases := []struct{
 		nameTest string
@@ -251,10 +245,10 @@ func TestGet(t *testing.T){
 	}{
 		{
 			nameTest: "Success Get",
-						// не ебу почему так
+						
 			requestUUID: "123e4567-e89b-12d3-a456-426614174000",
 			funcGet: func(id uuid.UUID)(User,error){
-						// должен  быть не пустой
+						
 				return User{}, nil
 			},
 			expectedStatus: http.StatusOK,
@@ -296,7 +290,7 @@ func TestGet(t *testing.T){
 
 	for _, tc := range(cases){
 		t.Run(tc.nameTest,func(t *testing.T) {
-										// тут ебала полная
+										
 			req, err := http.NewRequest("GET","/get?uuid="+tc.requestUUID,nil)
 
 			if err != nil{
@@ -320,9 +314,8 @@ func TestGet(t *testing.T){
 
 	} 
 }
-//тяжело
-//RegisterUserRouter
 
+// RegisterUserRouter
 func TestRegisterUserRout(t *testing.T){
 	
 	
@@ -349,9 +342,9 @@ func TestRegisterUserRout(t *testing.T){
 	
 	for _,tc:=range(cases){
 		t.Run(tc.nameTest,func(t *testing.T) {
-			// хуйня какая-то
+			
 			router := chi.NewRouter()
-							// это че словарь(a зачем) че он пустой то блять
+							
 			mockService := &MockService{}
 
 			handler :=&Handler{
@@ -364,12 +357,9 @@ func TestRegisterUserRout(t *testing.T){
 				t.Fatal(err)
 			}
 			rr := httptest.NewRecorder()
-			// не ебу че это
+			
 			router.ServeHTTP(rr,req)
 			
-
-			
-
 			if rr.Code != tc.expectedStatus {
                 t.Errorf("expected status %d, got %d", tc.expectedStatus, rr.Code)
             }

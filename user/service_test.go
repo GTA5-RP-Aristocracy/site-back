@@ -1,15 +1,10 @@
 package user
 
 import (
-	// "container/list"
 	"errors"
 	"fmt"
-	
-	// "strings"
 	"encoding/base64"
 	"testing"
-	
-	// "crypto/rand"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -272,7 +267,7 @@ func TestService_Signup_All(t *testing.T){
 
 
 
-// можно в case
+
 func TestServicee_checkPasswordHash(t *testing.T){
 	egz := &service{}
 
