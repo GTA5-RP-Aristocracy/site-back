@@ -21,7 +21,7 @@ func main() {
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
 	// Connect to the database.
-	db, err := db.ConnectDB("finalgta5", "1234", "localhost", "finalgta5_db")
+	db, err := db.ConnectDB("postgres", "postgres", "localhost", "gta_site")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to connect to the database")
 	}
