@@ -18,7 +18,7 @@ import (
 
 func main() {
 	// This is the entry point of the site command.
-	// It starts the web server and listens for incoming requests.
+	// It starts the web server and listens for incoming requests
 
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
