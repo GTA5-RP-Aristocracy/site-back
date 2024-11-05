@@ -16,12 +16,12 @@ import (
 
 func main() {
 	// This is the entry point of the site command.
-	// It starts the web server and listens for incoming requests.
+	// It starts the web server and listens for incoming requests
 
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
 	// Connect to the database.
-	db, err := db.ConnectDB("postgres", "postgres", "localhost", "gta_site")
+	db, err := db.ConnectDB("postgres", "postgres", "localhost", "postgres")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to connect to the database")
 	}

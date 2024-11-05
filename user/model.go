@@ -17,5 +17,6 @@ type (
 		Password string    `json:"password"`
 		Created  time.Time `json:"created"`
 		Updated  time.Time `json:"updated"`
+		
 	}
 )
