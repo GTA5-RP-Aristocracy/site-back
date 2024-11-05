@@ -15,6 +15,7 @@ const (
 	pathRoot   = "/user"
 	pathList   = "/list"
 	pathSignup = "/signup"
+	pathSignin = "/signin"
 )
 
 type (
@@ -33,6 +34,7 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) RegisterUserRouter(externalRouter chi.Router) {
 	r := chi.NewRouter()
 	r.Post(pathSignup, h.Signup)
+	r.Post(pathSignin, h.Signin)
 	r.Get(pathList, h.List)
 	externalRouter.Mount(pathRoot, r)
 	
@@ -78,6 +80,10 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 // TODO move to separate file
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+type UserResponce struct{
+	Email string
+	Name string
+}
 
 func (h *Handler)Signin(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
@@ -99,10 +105,16 @@ func (h *Handler)Signin(w http.ResponseWriter, r *http.Request) {
 		
 		return
 	}
+	
+	response :=UserResponce{
+		Email: user.Email,
+		Name: user.Name,
+	}
+
 	w.Header().Set("content-type","application/json")
 	w.WriteHeader(http.StatusOK)
 	
-	jsonResponse, _ :=json.Marshal(user)
+	jsonResponse, _ :=json.Marshal(response)
 	w.Write(jsonResponse)
 
 }

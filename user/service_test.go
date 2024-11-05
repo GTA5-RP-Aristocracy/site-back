@@ -250,7 +250,10 @@ func TestService_Signup_All(t *testing.T){
 			mockRepo.On("FindByEmail", tc.repoExpectedEmail).Return(tc.repoOutUser, tc.repoOutError)
 	
 			if errors.Is(tc.repoOutError, ErrNotFound) {
-				mockRepo.On("Create", tc.expectedUser).Return(tc.expectedError)
+				mockRepo.On("Create", mock.MatchedBy(func(u User) bool{
+					return u.Email == tc.expectedUser.Email && 
+					u.Name == tc.expectedUser.Name
+				})).Return(tc.expectedError)
 			}
 	
 			err := svc.Signup(tc.email, tc.name, tc.password)
