@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+
 	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 )
@@ -30,18 +31,18 @@ func (s *service) Signup(email, name, password string) error {
 	if err == nil {
 		return ErrEmailExists
 	}
-	if err !=ErrNotFound{
-		return fmt.Errorf("error get email:%w",err)
+	if err != ErrNotFound {
+		return fmt.Errorf("error get email:%w", err)
 	}
 
 	hash, err := s.passHashed(password)
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("error get passwordHash:%w", err)
 	}
 
 	// Create a new user.
 	user := User{
-		ID: uuid.New(),
+		ID:       uuid.New(),
 		Email:    email,
 		Name:     name,
 		Password: hash,
@@ -55,10 +56,14 @@ func (s *service) Signin(email, password string) (User, error) {
 	if err != nil {
 		return User{}, err
 	}
-	
+
 	// TODO: Use a secure password hashing algorithm.
-	if user.Password != password {
-		return User{}, ErrNotFound
+	ok, err := s.checkPasswordHash(password, user.Password)
+	if err != nil {
+		return User{}, fmt.Errorf("error checking password hash: %w", err)
+	}
+	if !ok {
+		return User{}, fmt.Errorf("invalid password")
 	}
 	return user, nil
 }
@@ -75,13 +80,13 @@ func (s *service) List() ([]User, error) {
 
 // check passw and hash sum
 func (s *service) checkPasswordHash(password, encodedHash string) (bool, error) {
-	parts :=strings.Split(encodedHash,"$")
-	if len(parts)!=2{
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid hash format")
 	}
 	passwdBase64 := parts[0]
 	hashBase64 := parts[1]
-	
+
 	passwd, err := base64.RawStdEncoding.DecodeString(passwdBase64)
 	if err != nil {
 		return false, fmt.Errorf("failed to decode salt: %w", err)
@@ -95,7 +100,6 @@ func (s *service) checkPasswordHash(password, encodedHash string) (bool, error) 
 
 	return string(expectedHash) == string(generatedHash), nil
 }
-
 
 // hashed password user
 func (s *service) passHashed(password string) (string, error) {
