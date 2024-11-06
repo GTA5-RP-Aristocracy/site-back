@@ -37,7 +37,6 @@ func (h *Handler) RegisterUserRouter(externalRouter chi.Router) {
 	r.Post(pathSignin, h.Signin)
 	r.Get(pathList, h.List)
 	externalRouter.Mount(pathRoot, r)
-	
 }
 
 // Signup handles user signup request.
@@ -80,85 +79,83 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 // TODO move to separate file
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-type UserResponce struct{
+type UserResponse struct {
 	Email string
-	Name string
+	Name  string
 }
 
-func (h *Handler)Signin(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Signin(w http.ResponseWriter, r *http.Request) {
 	email := r.FormValue("email")
 	password := r.FormValue("password")
-	
 
-	if email == "" || password == ""{
-		http.Error(w,"Email and password are required",http.StatusBadRequest)
+	if email == "" || password == "" {
+		http.Error(w, "Email and password are required", http.StatusBadRequest)
 		return
 	}
 
-	user, err:= h.service.Signin(email,password)
-	if err != nil{
-		if errors.Is(err,ErrInvalidCredentials){
-			http.Error(w,"Invalid credentials", http.StatusUnauthorized)
+	user, err := h.service.Signin(email, password)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
-		http.Error(w,"Internal Server error",http.StatusInternalServerError)
-		
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
-	
-	response :=UserResponce{
+
+	response := UserResponse{
 		Email: user.Email,
-		Name: user.Name,
+		Name:  user.Name,
 	}
 
-	w.Header().Set("content-type","application/json")
+	// set cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:  "session",
+		Value: user.ID.String(),
+	})
+
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	
-	jsonResponse, _ :=json.Marshal(response)
+
+	jsonResponse, _ := json.Marshal(response)
 	w.Write(jsonResponse)
-
 }
-
-
 
 // TODO move to separate file
 var ErrUserNotFound = errors.New("user not found")
 
-
-
-func (h *Handler)Get(w http.ResponseWriter, r *http.Request){
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	uuidStr := r.URL.Query().Get("uuid")
-	
-	
-	if uuidStr == ""{
-		http.Error(w,"User UUID is required", http.StatusBadRequest)
+
+	if uuidStr == "" {
+		http.Error(w, "User UUID is required", http.StatusBadRequest)
 		return
 	}
 
-	parsUUID, err := uuid.Parse(uuidStr) 
-	if err !=nil{
-		http.Error(w,"Invalid UUID format", http.StatusBadRequest)
+	parsUUID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		http.Error(w, "Invalid UUID format", http.StatusBadRequest)
 		return
 	}
 
 	user, err := h.service.Get(parsUUID)
 
-	if err != nil{
-		if err == ErrUserNotFound{
-			http.Error(w,"User not found", http.StatusNotFound)
+	if err != nil {
+		if err == ErrUserNotFound {
+			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w,"Internal server error", http.StatusInternalServerError)
-		
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+
 		return
 	}
-	w.Header().Set("content-type","application/json")
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-
 	jsonResponse, err := json.Marshal(user)
-	if err != nil{
-		http.Error(w,"Failed to serialize user data",http.StatusInternalServerError)
+	if err != nil {
+		http.Error(w, "Failed to serialize user data", http.StatusInternalServerError)
 		return
 	}
 

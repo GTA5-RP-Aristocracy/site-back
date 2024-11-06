@@ -1,3 +1,4 @@
+//go:generate swagger generate spec -o swagger.json
 package main
 
 import (
@@ -8,8 +9,10 @@ import (
 
 	"github.com/GTA5-RP-Aristocracy/site-back/db"
 	"github.com/GTA5-RP-Aristocracy/site-back/user"
+	"github.com/caarlos0/env/v11"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v2"
 	"github.com/rs/zerolog"
 )
@@ -20,8 +23,20 @@ func main() {
 
 	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
+	// Define the configuration options.
+	dbConfig := db.Config{
+		User:     "postgres",
+		Password: "postgres",
+		Host:     "localhost",
+		Database: "gta_site",
+	}
+	err := env.Parse(&dbConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to parse the database configuration")
+	}
+
 	// Connect to the database.
-	db, err := db.ConnectDB("postgres", "postgres", "localhost", "postgres")
+	db, err := db.ConnectDB(dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Database)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to connect to the database")
 	}
@@ -64,6 +79,16 @@ func main() {
 	r.Use(middleware.Heartbeat("/ping"))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(cors.Handler(cors.Options{
+		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
+		AllowedOrigins: []string{"https://*", "http://*"},
+		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
 
 	userHandler.RegisterUserRouter(r)
 
