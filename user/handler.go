@@ -16,18 +16,27 @@ const (
 	pathList   = "/list"
 	pathSignup = "/signup"
 	pathSignin = "/signin"
+	pathVerify = "/verify"
 )
 
 type (
 	// Handler represents a set of http handlers for managing users.
 	Handler struct {
-		service Service
+		service  Service
+		verifier Verifier
+	}
+
+	VerifierRequest struct {
+		Token string `json:"token"`
 	}
 )
 
 // NewHandler creates a new user http handler.
-func NewHandler(service Service) *Handler {
-	return &Handler{service}
+func NewHandler(service Service, verifier Verifier) *Handler {
+	return &Handler{
+		service:  service,
+		verifier: verifier,
+	}
 }
 
 // RegisterUserRouter registers user routes.
@@ -36,6 +45,8 @@ func (h *Handler) RegisterUserRouter(externalRouter chi.Router) {
 	r.Post(pathSignup, h.Signup)
 	r.Post(pathSignin, h.Signin)
 	r.Get(pathList, h.List)
+	r.Post(pathVerify, h.Verify)
+
 	externalRouter.Mount(pathRoot, r)
 }
 
@@ -160,5 +171,26 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(jsonResponse)
+}
 
+func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
+	// Parse the request.
+	var req VerifierRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Get the remote IP address.
+	remoteip := r.RemoteAddr
+
+	// Verify the reCAPTCHA response.
+	ok, err := h.verifier.Verify(req.Token, remoteip)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Write the response.
+	writeJSON(w, map[string]bool{"success": ok})
 }

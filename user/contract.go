@@ -15,8 +15,6 @@ type (
 		Get(id uuid.UUID) (User, error)
 		// List fetches all users.
 		List() ([]User, error)
-	
-		
 	}
 
 	// Repository represents the user repository interface.
@@ -29,6 +27,11 @@ type (
 		FindByID(id uuid.UUID) (User, error)
 		// FindAll returns all users.
 		FindAll() ([]User, error)
-		
+	}
+
+	// Verifier represents the reCAPTCHA verifier interface.
+	Verifier interface {
+		// Verify verifies the reCAPTCHA response.
+		Verify(response, remoteip string) (bool, error)
 	}
 )

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/GTA5-RP-Aristocracy/site-back/db"
+	"github.com/GTA5-RP-Aristocracy/site-back/integrations/google"
 	"github.com/GTA5-RP-Aristocracy/site-back/user"
 	"github.com/caarlos0/env/v11"
 	"github.com/go-chi/chi/v5"
@@ -44,6 +45,18 @@ func main() {
 
 	logger.Info().Msg("connected to the database")
 
+	// User config
+	userConfig := user.Config{
+		ReCaptchaSecret: "6LdPXmwqAAAAAEpQuxDYB12CwBxa2nuFt5gCHOpq",
+	}
+	err = env.Parse(&userConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to parse the user configuration")
+	}
+
+	// Create a new reCAPTCHA verifier.
+	recaptchaVerifier := google.NewReCaptchaAPI(userConfig.ReCaptchaSecret)
+
 	// Create a new user repository.
 	userRepo := user.NewRepository(db)
 
@@ -51,7 +64,7 @@ func main() {
 	userService := user.NewService(userRepo)
 
 	// Create a new user http handler.
-	userHandler := user.NewHandler(userService)
+	userHandler := user.NewHandler(userService, recaptchaVerifier)
 
 	loggerRouter := httplog.NewLogger("gta-site-api", httplog.Options{
 		JSON:     true,
