@@ -12,11 +12,14 @@ import (
 // This file contains user related http handlers.
 
 const (
-	pathRoot   = "/user"
-	pathList   = "/list"
-	pathSignup = "/signup"
-	pathSignin = "/signin"
-	pathVerify = "/verify"
+	pathRoot    = "/user"
+	pathList    = "/list"
+	pathSignup  = "/signup"
+	pathSignin  = "/signin"
+	pathVerify  = "/verify"
+	pathBlock   = "/block"
+	pathUnblock = "/unblock"
+	pathUpdate  = "/update"
 )
 
 type (
@@ -68,8 +71,14 @@ func (h *Handler) Signup(w http.ResponseWriter, r *http.Request) {
 
 // List handles user list request.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	var filter UserFilter
+	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Fetch all users.
-	users, err := h.service.List()
+	users, err := h.service.List(filter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -133,9 +142,6 @@ func (h *Handler) Signin(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResponse)
 }
 
-// TODO move to separate file
-var ErrUserNotFound = errors.New("user not found")
-
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	uuidStr := r.URL.Query().Get("uuid")
 
@@ -151,9 +157,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := h.service.Get(parsUUID)
-
 	if err != nil {
-		if err == ErrUserNotFound {
+		if err == ErrNotFound {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -161,6 +166,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
@@ -193,4 +199,86 @@ func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
 
 	// Write the response.
 	writeJSON(w, map[string]bool{"success": ok})
+}
+
+// Block handles user block request.
+func (h *Handler) Block(w http.ResponseWriter, r *http.Request) {
+	// Parse the request.
+	uuidStr := r.URL.Query().Get("uuid")
+	if uuidStr == "" {
+		http.Error(w, "User UUID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the UUID.
+	id, err := uuid.Parse(uuidStr)
+	if err != nil {
+		http.Error(w, "Invalid UUID format", http.StatusBadRequest)
+		return
+	}
+
+	// Block the user.
+	if err := h.service.Block(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// Unblock handles user unblock request.
+func (h *Handler) Unblock(w http.ResponseWriter, r *http.Request) {
+	// Parse the request.
+	uuidStr := r.URL.Query().Get("uuid")
+	if uuidStr == "" {
+		http.Error(w, "User UUID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the UUID.
+	id, err := uuid.Parse(uuidStr)
+	if err != nil {
+		http.Error(w, "Invalid UUID format", http.StatusBadRequest)
+		return
+	}
+
+	// Unblock the user.
+	if err := h.service.Unblock(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// Update handles user update request.
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	// Parse the request.
+	uuidStr := r.URL.Query().Get("uuid")
+	if uuidStr == "" {
+		http.Error(w, "User UUID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the UUID.
+	id, err := uuid.Parse(uuidStr)
+	if err != nil {
+		http.Error(w, "Invalid UUID format", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the request.
+	var fields FieldsToUpdate
+	if err := json.NewDecoder(r.Body).Decode(&fields); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Update the user.
+	if err := h.service.Update(id, fields); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

@@ -1,10 +1,11 @@
 package user
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
-	"encoding/base64"
 	"testing"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,7 +29,7 @@ func (m *MockRep) Create(user User) error {
 }
 
 // FindAll.
-func (m *MockRep) FindAll() ([]User, error) {
+func (m *MockRep) FindAll(filter UserFilter) ([]User, error) {
 	args := m.Called()
 	return args.Get(0).([]User), args.Error(1)
 }
@@ -39,6 +40,11 @@ func (m *MockRep) FindByEmail(email string) (User, error) {
 	return args.Get(0).(User), args.Error(1)
 }
 
+// Update
+func (m *MockRep) Update(id uuid.UUID, fields FieldsToUpdate) error {
+	args := m.Called(id, fields)
+	return args.Error(0)
+}
 
 // Get fetches a user by id.
 func TestServiceGet(t *testing.T) {
@@ -86,7 +92,7 @@ func TestService_FindAll(t *testing.T) {
 		{ID: myId, Name: "Testing 2"},
 	}
 	mockRepo.On("FindAll").Return(testUsers, nil)
-	users, err := svc.List()
+	users, err := svc.List(UserFilter{})
 
 	assert.NoError(t, err)
 	assert.Equal(t, testUsers, users)
@@ -94,8 +100,6 @@ func TestService_FindAll(t *testing.T) {
 	mockRepo.AssertCalled(t, "FindAll")
 
 }
-
-
 
 func TestService_Signin_All(t *testing.T) {
 	mockRepo := new(MockRep)
@@ -128,7 +132,7 @@ func TestService_Signin_All(t *testing.T) {
 				Password: "testpas123",
 			},
 			repoOutError: nil,
-		}, 
+		},
 		{
 			testName:          "userNotFound",
 			email:             "testUserNotFound@test.com",
@@ -141,10 +145,10 @@ func TestService_Signin_All(t *testing.T) {
 		},
 
 		{
-			testName: "wrongPassword",
-			email:    "testUserPaasword@test.com",
-			password: "wrongpasword",
-			expectedUser: User{},
+			testName:          "wrongPassword",
+			email:             "testUserPaasword@test.com",
+			password:          "wrongpasword",
+			expectedUser:      User{},
 			expectedError:     ErrNotFound,
 			repoExpectedEmail: "testUserPaasword@test.com",
 			repoOutUser: User{
@@ -156,7 +160,7 @@ func TestService_Signin_All(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		t.Run(tc.testName, func(t *testing.T) {			
+		t.Run(tc.testName, func(t *testing.T) {
 			mockRepo.On("FindByEmail", tc.repoExpectedEmail).Return(tc.repoOutUser, tc.repoOutError)
 			user, err := svc.Signin(tc.email, tc.password)
 			assert.Equal(t, tc.expectedUser, user)
@@ -166,101 +170,95 @@ func TestService_Signin_All(t *testing.T) {
 
 }
 
-func TestService_Signup_All(t *testing.T){
-	
+func TestService_Signup_All(t *testing.T) {
 
-	cases := [] struct{
-		testName  string
-		email string
-		password string
-		name string
-		expectedUser User
-		expectedError error
+	cases := []struct {
+		testName          string
+		email             string
+		password          string
+		name              string
+		expectedUser      User
+		expectedError     error
 		repoExpectedEmail string
-		repoOutUser User
-		repoOutError error
+		repoOutUser       User
+		repoOutError      error
 	}{
 		{
-			testName: "findEmail",
-			email: "test12345@test.com",
-			password: "pass123",
-			name: "Test",
-			expectedUser: User{},
-			expectedError: ErrEmailExists,
+			testName:          "findEmail",
+			email:             "test12345@test.com",
+			password:          "pass123",
+			name:              "Test",
+			expectedUser:      User{},
+			expectedError:     ErrEmailExists,
 			repoExpectedEmail: "test12345@test.com",
-			repoOutUser: User{},
-			repoOutError: nil,
+			repoOutUser:       User{},
+			repoOutError:      nil,
 		},
 		{
 			testName: "createUser",
-			email: "test12345@test.com",
-			name: "Test",
+			email:    "test12345@test.com",
+			name:     "Test",
 			password: "pass123",
 			expectedUser: User{
-				Email: "test12345@test.com",
-				Name: "Test",
+				Email:    "test12345@test.com",
+				Name:     "Test",
 				Password: "pass123",
 			},
-			expectedError: nil,
+			expectedError:     nil,
 			repoExpectedEmail: "test12345@test.com",
-			repoOutUser: User{},
-			repoOutError: ErrNotFound,
-				
+			repoOutUser:       User{},
+			repoOutError:      ErrNotFound,
 		},
 		{
 			testName: "createUser",
-			email: "test12345@test.com",
-			name: "Test",
+			email:    "test12345@test.com",
+			name:     "Test",
 			password: "pass123",
 			expectedUser: User{
-				Email: "test12345@test.com",
-				Name: "Test",
+				Email:    "test12345@test.com",
+				Name:     "Test",
 				Password: "pass123",
 			},
-			expectedError: nil,
+			expectedError:     nil,
 			repoExpectedEmail: "test12345@test.com",
-			repoOutUser: User{},
-			repoOutError: ErrNotFound,
-				
+			repoOutUser:       User{},
+			repoOutError:      ErrNotFound,
 		},
 		{
 			testName: "errorEmail",
-			email: "test123456@test.com",
-			name: "Test123",
+			email:    "test123456@test.com",
+			name:     "Test123",
 			password: "pa123",
-			
+
 			expectedUser: User{
-				Email: "test123456@test.com",
-				Name: "Test123",
+				Email:    "test123456@test.com",
+				Name:     "Test123",
 				Password: "pass123",
 			},
-			expectedError: fmt.Errorf("error get email:%w", errors.New("random error")),
+			expectedError:     fmt.Errorf("error get email:%w", errors.New("random error")),
 			repoExpectedEmail: "test123456@test.com",
-			repoOutUser: User{},
-			repoOutError: errors.New("random error"),
+			repoOutUser:       User{},
+			repoOutError:      errors.New("random error"),
 		},
-
-		
-
 	}
 	for _, tc := range cases {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockRepo := new(MockRep)
 			svc := NewService(mockRepo)
 			mockRepo.On("FindByEmail", tc.repoExpectedEmail).Return(tc.repoOutUser, tc.repoOutError)
-	
+
 			if errors.Is(tc.repoOutError, ErrNotFound) {
-				mockRepo.On("Create", mock.MatchedBy(func(u User) bool{
-					return u.Email == tc.expectedUser.Email && 
-					u.Name == tc.expectedUser.Name
+				mockRepo.On("Create", mock.MatchedBy(func(u User) bool {
+					return u.Email == tc.expectedUser.Email &&
+						u.Name == tc.expectedUser.Name
 				})).Return(tc.expectedError)
 			}
-	
+
 			err := svc.Signup(tc.email, tc.name, tc.password)
 			t.Logf("Expected error: %v, Actual error: %v", tc.expectedError, err)
-	
+
 			if tc.expectedError != nil {
-				assert.ErrorContains(t, err, tc.expectedError.Error()) 
+				assert.ErrorContains(t, err, tc.expectedError.Error())
 			} else {
 				assert.NoError(t, err)
 			}
@@ -268,36 +266,30 @@ func TestService_Signup_All(t *testing.T){
 	}
 }
 
-
-
-
-func TestServicee_checkPasswordHash(t *testing.T){
+func TestServicee_checkPasswordHash(t *testing.T) {
 	egz := &service{}
 
 	//пароль верный и hash
 	password := "password"
 	encodedHash, err := egz.passHashed(password)
-	require.NoError(t,err)
-	
-
+	require.NoError(t, err)
 
 	// пароль совпадает с hash
-	isVal, err := egz.checkPasswordHash(password,encodedHash)
-	assert.NoError(t,err)
+	isVal, err := egz.checkPasswordHash(password, encodedHash)
+	assert.NoError(t, err)
 	assert.True(t, isVal)
 
 	// неверный пароль
 	wrongPas := "wrong"
-	isVal,err = egz.checkPasswordHash(wrongPas,encodedHash)
-	assert.NoError(t,err)
-	assert.False(t,isVal)
+	isVal, err = egz.checkPasswordHash(wrongPas, encodedHash)
+	assert.NoError(t, err)
+	assert.False(t, isVal)
 
 	// неверный формат hash
 	invalHash := "this_is_not_valid_base64!"
 
-	_, err = egz.checkPasswordHash(password,invalHash)
-	assert.Error(t,err)
-
+	_, err = egz.checkPasswordHash(password, invalHash)
+	assert.Error(t, err)
 
 	//  Валидный формат, но невалидная Base64 строка для соли
 	invalidBase64Salt := "invalidbase64$" + base64.RawStdEncoding.EncodeToString([]byte("valid_hash"))
@@ -310,8 +302,5 @@ func TestServicee_checkPasswordHash(t *testing.T){
 	_, err = egz.checkPasswordHash(password, invalidBase64Hash)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to decode hash")
-	
-	
-}
-	
 
+}
