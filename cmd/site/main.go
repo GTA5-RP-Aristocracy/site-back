@@ -9,6 +9,9 @@ import (
 
 	"github.com/GTA5-RP-Aristocracy/site-back/db"
 	"github.com/GTA5-RP-Aristocracy/site-back/integrations/google"
+	"github.com/GTA5-RP-Aristocracy/site-back/product"
+	"github.com/GTA5-RP-Aristocracy/site-back/product/handler"
+	"github.com/GTA5-RP-Aristocracy/site-back/product/repository"
 	"github.com/GTA5-RP-Aristocracy/site-back/user"
 	"github.com/caarlos0/env/v11"
 	"github.com/go-chi/chi/v5"
@@ -104,6 +107,12 @@ func main() {
 	}))
 
 	userHandler.RegisterUserRouter(r)
+
+	productRepo := repository.New(db)
+	productService := product.NewService(productRepo)
+	productHandler := handler.NewHandler(productService, logger.With().Str("component", "product").Logger())
+
+	productHandler.RegisterProductRouter(r)
 
 	// TODO add signal handling for graceful shutdown
 	logger.Info().Msg("starting the web server")
