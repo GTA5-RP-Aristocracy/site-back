@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"github.com/GTA5-RP-Aristocracy/site-back/db"
+	"github.com/GTA5-RP-Aristocracy/site-back/integrations/google"
+	"github.com/GTA5-RP-Aristocracy/site-back/product"
+	"github.com/GTA5-RP-Aristocracy/site-back/product/handler"
+	"github.com/GTA5-RP-Aristocracy/site-back/product/repository"
 	"github.com/GTA5-RP-Aristocracy/site-back/user"
 	"github.com/caarlos0/env/v11"
 	"github.com/go-chi/chi/v5"
@@ -44,6 +48,18 @@ func main() {
 
 	logger.Info().Msg("connected to the database")
 
+	// User config
+	userConfig := user.Config{
+		ReCaptchaSecret: "6LdPXmwqAAAAAEpQuxDYB12CwBxa2nuFt5gCHOpq",
+	}
+	err = env.Parse(&userConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to parse the user configuration")
+	}
+
+	// Create a new reCAPTCHA verifier.
+	recaptchaVerifier := google.NewReCaptchaAPI(userConfig.ReCaptchaSecret)
+
 	// Create a new user repository.
 	userRepo := user.NewRepository(db)
 
@@ -51,7 +67,7 @@ func main() {
 	userService := user.NewService(userRepo)
 
 	// Create a new user http handler.
-	userHandler := user.NewHandler(userService)
+	userHandler := user.NewHandler(userService, recaptchaVerifier)
 
 	loggerRouter := httplog.NewLogger("gta-site-api", httplog.Options{
 		JSON:     true,
@@ -91,6 +107,12 @@ func main() {
 	}))
 
 	userHandler.RegisterUserRouter(r)
+
+	productRepo := repository.New(db)
+	productService := product.NewService(productRepo)
+	productHandler := handler.NewHandler(productService, logger.With().Str("component", "product").Logger())
+
+	productHandler.RegisterProductRouter(r)
 
 	// TODO add signal handling for graceful shutdown
 	logger.Info().Msg("starting the web server")

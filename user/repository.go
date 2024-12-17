@@ -5,6 +5,7 @@ package user
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -18,7 +19,7 @@ type (
 )
 
 // NewRepository creates a new user repository.
-func NewRepository(db *sql.DB) Repository {
+func NewRepository(db *sql.DB) *repository {
 	return &repository{db}
 }
 
@@ -33,8 +34,8 @@ func (r *repository) FindByEmail(email string) (User, error) {
 	var user User
 	err := r.db.QueryRow("SELECT id, email, name, password, created, updated FROM user_storage WHERE email = $1", email).
 		Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Created, &user.Updated)
-	if errors.Is(err,sql.ErrNoRows){
-		return User{},ErrNotFound
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, ErrNotFound
 	}
 
 	return user, err
@@ -49,8 +50,22 @@ func (r *repository) FindByID(id uuid.UUID) (User, error) {
 }
 
 // FindAll returns all users.
-func (r *repository) FindAll() ([]User, error) {
-	rows, err := r.db.Query("SELECT id, email, name, password, created, updated FROM user_storage")
+func (r *repository) FindAll(filter UserFilter) ([]User, error) {
+	q := "SELECT id, email, name, password, created, updated FROM user_storage"
+
+	if len(filter.Roles) > 0 {
+		q += " WHERE role = ANY($1)"
+	}
+
+	if filter.Limit > 0 {
+		q += " LIMIT $1"
+	}
+
+	if filter.Offset > 0 {
+		q += " OFFSET $2"
+	}
+
+	rows, err := r.db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -65,4 +80,43 @@ func (r *repository) FindAll() ([]User, error) {
 		users = append(users, user)
 	}
 	return users, nil
+}
+
+// Update updates a user.
+func (r *repository) Update(id uuid.UUID, fields FieldsToUpdate) error {
+	q := "UPDATE user_storage SET updated = now()"
+	args := []interface{}{}
+
+	if fields.Name != "" {
+		q += ", name = $1"
+		args = append(args, fields.Name)
+	}
+
+	if fields.Email != "" {
+		q += ", email = $2"
+		args = append(args, fields.Email)
+	}
+
+	if fields.Password != "" {
+		q += ", password = $3"
+		args = append(args, fields.Password)
+	}
+
+	if fields.Role != "" {
+		q += ", role = $4"
+		args = append(args, fields.Role)
+	}
+
+	q += ", blocked = $5"
+	args = append(args, fields.Blocked)
+
+	q += " WHERE id = $6"
+	args = append(args, id)
+
+	_, err := r.db.Exec(q, args...)
+	if err != nil {
+		return fmt.Errorf("error updating user: %w", err)
+	}
+
+	return nil
 }

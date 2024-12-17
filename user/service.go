@@ -20,7 +20,7 @@ type (
 )
 
 // NewService creates a new user service.
-func NewService(repo Repository) Service {
+func NewService(repo Repository) *service {
 	return &service{repo}
 }
 
@@ -74,8 +74,39 @@ func (s *service) Get(id uuid.UUID) (User, error) {
 }
 
 // List fetches all users.
-func (s *service) List() ([]User, error) {
-	return s.repo.FindAll()
+func (s *service) List(filter UserFilter) ([]User, error) {
+	return s.repo.FindAll(filter)
+}
+
+// Block user
+func (s *service) Block(id uuid.UUID) error {
+	err := s.repo.Update(id, FieldsToUpdate{
+		Blocked: true,
+	})
+	if err != nil {
+		return fmt.Errorf("error blocking user: %w", err)
+	}
+	return nil
+}
+
+// Unblock user
+func (s *service) Unblock(id uuid.UUID) error {
+	err := s.repo.Update(id, FieldsToUpdate{
+		Blocked: false,
+	})
+	if err != nil {
+		return fmt.Errorf("error unblocking user: %w", err)
+	}
+	return nil
+}
+
+// Update user
+func (s *service) Update(id uuid.UUID, fields FieldsToUpdate) error {
+	err := s.repo.Update(id, fields)
+	if err != nil {
+		return fmt.Errorf("error updating user: %w", err)
+	}
+	return nil
 }
 
 // check passw and hash sum
