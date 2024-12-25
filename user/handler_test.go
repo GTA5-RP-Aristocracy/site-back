@@ -14,7 +14,7 @@ import (
 type MockService struct {
 	funcSignup  func(email, name, password string) error
 	funcList    func(filter UserFilter) ([]User, error)
-	funcSignin  func(email, password string) (User, error)
+	funcSignin  func(email, password string) (User, string, error)
 	funcGet     func(id uuid.UUID) (User, error)
 	funcUpdate  func(id uuid.UUID, fields FieldsToUpdate) error
 	funcBlock   func(id uuid.UUID) error
@@ -35,7 +35,7 @@ func (m *MockService) Get(id uuid.UUID) (User, error) {
 }
 
 // Signin
-func (m *MockService) Signin(email, password string) (User, error) {
+func (m *MockService) Signin(email, password string) (User, string, error) {
 	return m.funcSignin(email, password)
 }
 
@@ -171,40 +171,40 @@ func TestSignin(t *testing.T) {
 	cases := []struct {
 		testName       string
 		requestBody    string
-		funcSignin     func(email, password string) (User, error)
+		funcSignin     func(email, password string) (User, string, error)
 		expectedStatus int
 	}{
 		{
 			testName:    "Successfull Signin",
 			requestBody: "email=teststas@ex.com&password=123test",
-			funcSignin: func(email, password string) (User, error) {
+			funcSignin: func(email, password string) (User, string, error) {
 
-				return User{Email: "teststas@ex.com", Name: "test"}, nil
+				return User{Email: "teststas@ex.com", Name: "test"}, "", nil
 			},
 			expectedStatus: http.StatusOK,
 		},
 		{
 			testName:    "Unauthorized Signin",
 			requestBody: "email=123@email.com&password=1231231231",
-			funcSignin: func(email, password string) (User, error) {
+			funcSignin: func(email, password string) (User, string, error) {
 
-				return User{}, ErrInvalidCredentials
+				return User{}, "", ErrInvalidCredentials
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			testName:    "Internal Server error Signin",
 			requestBody: "email=123@email.com&password=1231231231",
-			funcSignin: func(email, password string) (User, error) {
-				return User{}, errors.New("internal error")
+			funcSignin: func(email, password string) (User, string, error) {
+				return User{}, "", errors.New("internal error")
 			},
 			expectedStatus: http.StatusInternalServerError,
 		},
 		{
 			testName:    "Email and password are required Signin",
 			requestBody: "email=&password=",
-			funcSignin: func(email string, password string) (User, error) {
-				return User{}, nil
+			funcSignin: func(email string, password string) (User, string, error) {
+				return User{}, "", nil
 			},
 			expectedStatus: http.StatusBadRequest,
 		},

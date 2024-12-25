@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 )
@@ -15,13 +17,19 @@ import (
 type (
 	// service implements the Service interface.
 	service struct {
-		repo Repository
+		repo        Repository
+		tokenSecret string
+		tokenExp    time.Duration
 	}
 )
 
 // NewService creates a new user service.
-func NewService(repo Repository) *service {
-	return &service{repo}
+func NewService(repo Repository, secret string, tokenExp time.Duration) *service {
+	return &service{
+		repo:        repo,
+		tokenSecret: secret,
+		tokenExp:    tokenExp,
+	}
 }
 
 // Signup creates a new user account.
@@ -51,31 +59,62 @@ func (s *service) Signup(email, name, password string) error {
 }
 
 // Signin checks the email and password and returns a user.
-func (s *service) Signin(email, password string) (User, error) {
+func (s *service) Signin(email, password string) (User, string, error) {
 	user, err := s.repo.FindByEmail(email)
 	if err != nil {
-		return User{}, err
+		return User{}, "", err
 	}
 
 	// TODO: Use a secure password hashing algorithm.
 	ok, err := s.checkPasswordHash(password, user.Password)
 	if err != nil {
-		return User{}, fmt.Errorf("error checking password hash: %w", err)
+		return User{}, "", fmt.Errorf("error checking password hash: %w", err)
 	}
 	if !ok {
-		return User{}, fmt.Errorf("invalid password")
+		return User{}, "", fmt.Errorf("invalid password")
 	}
-	return user, nil
+
+	// generate jwt token
+	token, err := s.generateJWTToken(user.ID)
+	if err != nil {
+		return User{}, "", fmt.Errorf("error generating token: %w", err)
+	}
+
+	return user, token, nil
+}
+
+// generateJWTToken
+func (s *service) generateJWTToken(id uuid.UUID) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":  id.String(),
+		"exp": time.Now().Add(s.tokenExp).Unix(),
+	})
+
+	return token.SignedString([]byte(s.tokenSecret))
 }
 
 // Get fetches a user by id.
 func (s *service) Get(id uuid.UUID) (User, error) {
-	return s.repo.FindByID(id)
+	user, err := s.repo.FindByID(id)
+	if err != nil {
+		return User{}, fmt.Errorf("error fetching user: %w", err)
+	}
+
+	user.Password = ""
+	return user, nil
 }
 
 // List fetches all users.
 func (s *service) List(filter UserFilter) ([]User, error) {
-	return s.repo.FindAll(filter)
+	users, err := s.repo.FindAll(filter)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching users: %w", err)
+	}
+
+	for i := range users {
+		users[i].Password = ""
+	}
+	return users, nil
 }
 
 // Block user

@@ -5,8 +5,11 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
+	siteback "github.com/GTA5-RP-Aristocracy/site-back"
 	"github.com/GTA5-RP-Aristocracy/site-back/db"
 	"github.com/GTA5-RP-Aristocracy/site-back/integrations/google"
 	"github.com/GTA5-RP-Aristocracy/site-back/product"
@@ -50,24 +53,34 @@ func main() {
 
 	// User config
 	userConfig := user.Config{
-		ReCaptchaSecret: "6LdPXmwqAAAAAEpQuxDYB12CwBxa2nuFt5gCHOpq",
+		JWTsecret: "6LdPXmwqAAAAAEpQuxDYB12CwBxa2nuFt5gCHOpq",
+		JWTexp:    24 * time.Hour,
 	}
 	err = env.Parse(&userConfig)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to parse the user configuration")
 	}
 
+	// Global configuration
+	globalConfig := siteback.Config{
+		ReCaptchaSecret: "6LdPXmwqAAAAAEpQuxDYB12CwBxa2nuFt5gCHOpq",
+	}
+	err = env.Parse(&globalConfig)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to parse the global configuration")
+	}
+
 	// Create a new reCAPTCHA verifier.
-	recaptchaVerifier := google.NewReCaptchaAPI(userConfig.ReCaptchaSecret)
+	recaptchaVerifier := google.NewReCaptchaAPI(globalConfig.ReCaptchaSecret)
 
 	// Create a new user repository.
 	userRepo := user.NewRepository(db)
 
 	// Create a new user service.
-	userService := user.NewService(userRepo)
+	userService := user.NewService(userRepo, userConfig.JWTsecret, userConfig.JWTexp)
 
 	// Create a new user http handler.
-	userHandler := user.NewHandler(userService, recaptchaVerifier)
+	userHandler := user.NewHandler(userService, recaptchaVerifier, userConfig.JWTsecret)
 
 	loggerRouter := httplog.NewLogger("gta-site-api", httplog.Options{
 		JSON:     true,
@@ -114,9 +127,16 @@ func main() {
 
 	productHandler.RegisterProductRouter(r)
 
-	// TODO add signal handling for graceful shutdown
 	logger.Info().Msg("starting the web server")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		logger.Fatal().Err(err).Msg("failed to start the web server")
-	}
+	go func() {
+		if err := http.ListenAndServe(":8080", r); err != nil {
+			logger.Fatal().Err(err).Msg("failed to start the web server")
+		}
+	}()
+
+	// Graceful shutdown TODO: fix this
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+	logger.Info().Msg("shutting down the web server")
 }

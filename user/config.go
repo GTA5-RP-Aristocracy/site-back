@@ -1,7 +1,10 @@
 package user
 
+import "time"
+
 type (
 	Config struct {
-		ReCaptchaSecret string `env:"RECAPTCHA_SECRET"`
+		JWTsecret string        `env:"JWT_SECRET"`
+		JWTexp    time.Duration `env:"JWT_EXP"`
 	}
 )

@@ -10,7 +10,7 @@ type (
 		// Signup creates a new user account.
 		Signup(email, name, password string) error
 		// Signin checks the email and password and returns a user.
-		Signin(email, password string) (User, error)
+		Signin(email, password string) (User, string, error)
 		// Get fetches a user by id.
 		Get(id uuid.UUID) (User, error)
 		// List fetches all users.

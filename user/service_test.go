@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +52,7 @@ func TestServiceGet(t *testing.T) {
 
 	testID := uuid.New()
 	mockRepo := new(MockRep)
-	svc := NewService(mockRepo)
+	svc := NewService(mockRepo, "secret", time.Hour)
 
 	expectUser := User{ID: testID, Name: "Test"}
 	mockRepo.On("FindByID", testID).Return(expectUser, nil)
@@ -68,7 +69,7 @@ func TestServiceGet(t *testing.T) {
 func TestService_Get_NotFound(t *testing.T) {
 	testID := uuid.New()
 	mockRepo := new(MockRep)
-	svc := NewService(mockRepo)
+	svc := NewService(mockRepo, "secret", time.Hour)
 
 	mockRepo.On("FindByID", testID).Return(User{}, errors.New("User not found"))
 
@@ -84,7 +85,7 @@ func TestService_Get_NotFound(t *testing.T) {
 func TestService_FindAll(t *testing.T) {
 
 	mockRepo := new(MockRep)
-	svc := NewService(mockRepo)
+	svc := NewService(mockRepo, "secret", time.Hour)
 	myId := uuid.New()
 
 	testUsers := []User{
@@ -103,7 +104,7 @@ func TestService_FindAll(t *testing.T) {
 
 func TestService_Signin_All(t *testing.T) {
 	mockRepo := new(MockRep)
-	svc := NewService(mockRepo)
+	svc := NewService(mockRepo, "secret", time.Hour)
 
 	cases := []struct {
 		testName          string
@@ -162,7 +163,7 @@ func TestService_Signin_All(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockRepo.On("FindByEmail", tc.repoExpectedEmail).Return(tc.repoOutUser, tc.repoOutError)
-			user, err := svc.Signin(tc.email, tc.password)
+			user, _, err := svc.Signin(tc.email, tc.password)
 			assert.Equal(t, tc.expectedUser, user)
 			assert.Equal(t, tc.expectedError, err)
 		})
@@ -244,7 +245,7 @@ func TestService_Signup_All(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.testName, func(t *testing.T) {
 			mockRepo := new(MockRep)
-			svc := NewService(mockRepo)
+			svc := NewService(mockRepo, "secret", time.Hour)
 			mockRepo.On("FindByEmail", tc.repoExpectedEmail).Return(tc.repoOutUser, tc.repoOutError)
 
 			if errors.Is(tc.repoOutError, ErrNotFound) {

@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -44,28 +46,40 @@ func (r *repository) FindByEmail(email string) (User, error) {
 // FindByID returns a user by id.
 func (r *repository) FindByID(id uuid.UUID) (User, error) {
 	var user User
-	err := r.db.QueryRow("SELECT id, email, name, password, created, updated FROM user_storage WHERE id = $1", id).
-		Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Created, &user.Updated)
+	err := r.db.QueryRow("SELECT id, email, name, password, created, updated, role, blocked FROM user_storage WHERE id = $1", id).
+		Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Created, &user.Updated, &user.Role, &user.Blocked)
 	return user, err
 }
 
 // FindAll returns all users.
 func (r *repository) FindAll(filter UserFilter) ([]User, error) {
-	q := "SELECT id, email, name, password, created, updated FROM user_storage"
+	q := "SELECT id, email, name, password, created, updated, blocked, role FROM user_storage"
 
+	count := 0
+	args := []interface{}{}
 	if len(filter.Roles) > 0 {
-		q += " WHERE role = ANY($1)"
+		roles := make([]string, len(filter.Roles))
+		for i, role := range filter.Roles {
+			roles[i] = strconv.Itoa(int(role))
+		}
+		q += fmt.Sprintf(" WHERE role IN ('%s')", strings.Join(roles, "','"))
 	}
 
+	q += " ORDER BY created DESC"
+
 	if filter.Limit > 0 {
-		q += " LIMIT $1"
+		count++
+		q += fmt.Sprintf(" LIMIT $%d", count)
+		args = append(args, filter.Limit)
 	}
 
 	if filter.Offset > 0 {
-		q += " OFFSET $2"
+		count++
+		q += fmt.Sprintf(" OFFSET $%d", count)
+		args = append(args, filter.Offset)
 	}
 
-	rows, err := r.db.Query(q)
+	rows, err := r.db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +88,9 @@ func (r *repository) FindAll(filter UserFilter) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Created, &user.Updated); err != nil {
+		if err := rows.Scan(
+			&user.ID, &user.Email, &user.Name, &user.Password, &user.Created, &user.Updated, &user.Blocked, &user.Role,
+		); err != nil {
 			return nil, err
 		}
 		users = append(users, user)
@@ -87,30 +103,37 @@ func (r *repository) Update(id uuid.UUID, fields FieldsToUpdate) error {
 	q := "UPDATE user_storage SET updated = now()"
 	args := []interface{}{}
 
+	count := 0
 	if fields.Name != "" {
-		q += ", name = $1"
+		count++
+		q += fmt.Sprintf(", name = $%d", count)
 		args = append(args, fields.Name)
 	}
 
 	if fields.Email != "" {
-		q += ", email = $2"
+		count++
+		q += fmt.Sprintf(", email = $%d", count)
 		args = append(args, fields.Email)
 	}
 
 	if fields.Password != "" {
-		q += ", password = $3"
+		count++
+		q += fmt.Sprintf(", password = $%d", count)
 		args = append(args, fields.Password)
 	}
 
-	if fields.Role != "" {
-		q += ", role = $4"
+	if fields.Role != 0 {
+		count++
+		q += fmt.Sprintf(", role = $%d", count)
 		args = append(args, fields.Role)
 	}
 
-	q += ", blocked = $5"
+	count++
+	q += fmt.Sprintf(", blocked = $%d", count)
 	args = append(args, fields.Blocked)
 
-	q += " WHERE id = $6"
+	count++
+	q += fmt.Sprintf(" WHERE id = $%d", count)
 	args = append(args, id)
 
 	_, err := r.db.Exec(q, args...)

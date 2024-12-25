@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE user_storage DROP COLUMN role;
+
+ALTER TABLE user_storage ADD COLUMN role VARCHAR(255) DEFAULT 'user';
+
+END;
