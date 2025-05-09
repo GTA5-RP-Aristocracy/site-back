@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE user_storage DROP COLUMN role;
+
+ALTER TABLE user_storage ADD COLUMN role NUMERIC(1) DEFAULT 3;
+
+END;
